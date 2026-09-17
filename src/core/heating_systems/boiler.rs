@@ -16,6 +16,7 @@ use crate::simulation_time::SimulationTimeIteration;
 use crate::statistics::np_interp;
 use anyhow::bail;
 use approx::relative_eq;
+use arcstr::ArcStr;
 use atomic_float::AtomicF64;
 use fsum::FSum;
 use indexmap::IndexMap;
@@ -603,9 +604,9 @@ pub struct Boiler {
     energy_supply: Arc<RwLock<EnergySupply>>,
     simulation_timestep: f64,
     external_conditions: Arc<ExternalConditions>,
-    energy_supply_connections: IndexMap<String, EnergySupplyConnection>,
+    energy_supply_connections: IndexMap<ArcStr, EnergySupplyConnection>,
     energy_supply_connection_aux: EnergySupplyConnection,
-    _energy_supply_type: String,
+    _energy_supply_type: ArcStr,
     // service_results: (),
     boiler_location: HeatSourceLocation,
     min_modulation_load: f64,

@@ -1,4 +1,5 @@
 use crate::input::PreHeatedWaterSourceDetails;
+use arcstr::ArcStr;
 use indexmap::IndexMap;
 use petgraph::algo::toposort;
 use petgraph::Graph;
@@ -6,14 +7,14 @@ use thiserror::Error;
 
 /// Build a dependency graph for PreHeatedWaterSource objects.
 pub(crate) fn build_preheated_water_source_dependency_graph(
-    preheated_sources_input: &IndexMap<String, PreHeatedWaterSourceDetails>,
-) -> Graph<String, String> {
-    let mut graph = Graph::<String, String>::new();
-    let mut nodes: IndexMap<String, _> = IndexMap::new();
+    preheated_sources_input: &IndexMap<ArcStr, PreHeatedWaterSourceDetails>,
+) -> Graph<ArcStr, ArcStr> {
+    let mut graph = Graph::<ArcStr, ArcStr>::new();
+    let mut nodes: IndexMap<ArcStr, _> = IndexMap::new();
 
     for name in preheated_sources_input.keys() {
-        let node_index = graph.add_node(name.clone());
-        nodes.insert(name.clone(), node_index);
+        let node_index = graph.add_node(name.into());
+        nodes.insert(name.into(), node_index);
     }
 
     let mut edges = Vec::new();

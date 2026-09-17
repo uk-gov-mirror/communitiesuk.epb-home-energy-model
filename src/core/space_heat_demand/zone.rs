@@ -13,6 +13,7 @@ use crate::input::{ZoneTemperatureControlBasis, PITCH_LIMIT_HORIZ_FLOOR};
 use crate::simulation_time::{SimulationTimeIteration, SimulationTimeIterator};
 use anyhow::bail;
 use approx::relative_eq;
+use arcstr::ArcStr;
 use field_types::FieldName;
 use fsum::FSum;
 use indexmap::IndexMap;
@@ -1544,11 +1545,19 @@ impl AirChangesPerHourArgument {
 }
 
 pub(crate) trait GainsLossesAsIndexMap {
-    fn as_index_map(&self) -> IndexMap<Arc<str>, f64>;
+    fn as_index_map(&self) -> IndexMap<ArcStr, f64>;
 }
 
 #[derive(Debug, FieldName, PartialEq)]
-#[field_name_derive(Debug, Eq, Hash, PartialEq, Serialize_enum_str)]
+#[field_name_derive(
+    Debug,
+    Deserialize_enum_str,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize_enum_str,
+    serde(rename_all = "snake_case")
+)]
 pub struct HeatBalanceAirNode {
     pub solar_gains: f64,
     pub internal_gains: f64,
@@ -1559,32 +1568,28 @@ pub struct HeatBalanceAirNode {
     pub fabric_heat_loss: f64,
 }
 
-impl From<HeatBalanceAirNodeFieldName> for Arc<str> {
+impl From<HeatBalanceAirNodeFieldName> for ArcStr {
     fn from(value: HeatBalanceAirNodeFieldName) -> Self {
-        value.as_str().into()
-    }
-}
-
-impl HeatBalanceAirNodeFieldName {
-    fn as_str(&self) -> &str {
-        match self {
-            HeatBalanceAirNodeFieldName::SolarGains => "solar gains",
-            HeatBalanceAirNodeFieldName::InternalGains => "internal gains",
+        match value {
+            HeatBalanceAirNodeFieldName::SolarGains => arcstr::literal!("solar gains"),
+            HeatBalanceAirNodeFieldName::InternalGains => arcstr::literal!("internal gains"),
             HeatBalanceAirNodeFieldName::HeatingOrCoolingSystemGains => {
-                "heating or cooling system gains"
+                arcstr::literal!("heating or cooling system gains")
             }
             HeatBalanceAirNodeFieldName::EnergyToChangeInternalTemperature => {
-                "energy to change internal temperature"
+                arcstr::literal!("energy to change internal temperature")
             }
-            HeatBalanceAirNodeFieldName::ThermalBridges => "thermal_bridges", // NB. casing scheme is correctly different from those above (correctly in sense this fits with the upstream Python)
-            HeatBalanceAirNodeFieldName::InfiltrationVentilation => "infiltration_ventilation",
-            HeatBalanceAirNodeFieldName::FabricHeatLoss => "fabric", // upstream Python uses just "fabric" for this
+            HeatBalanceAirNodeFieldName::ThermalBridges => arcstr::literal!("thermal_bridges"), // NB. casing scheme is correctly different from those above (correctly in sense this fits with the upstream Python)
+            HeatBalanceAirNodeFieldName::InfiltrationVentilation => {
+                arcstr::literal!("infiltration_ventilation")
+            }
+            HeatBalanceAirNodeFieldName::FabricHeatLoss => arcstr::literal!("fabric"), // upstream Python uses just "fabric" for this
         }
     }
 }
 
 impl GainsLossesAsIndexMap for HeatBalanceAirNode {
-    fn as_index_map(&self) -> IndexMap<Arc<str>, f64> {
+    fn as_index_map(&self) -> IndexMap<&'static str, f64> {
         let Self {
             solar_gains,
             internal_gains,
@@ -1633,27 +1638,27 @@ pub struct HeatBalanceInternalBoundary {
     pub fabric_int_heat_cool: f64,
 }
 
-impl From<HeatBalanceInternalBoundaryFieldName> for Arc<str> {
+impl From<HeatBalanceInternalBoundaryFieldName> for ArcStr {
     fn from(value: HeatBalanceInternalBoundaryFieldName) -> Self {
-        value.as_str().into()
-    }
-}
-
-impl HeatBalanceInternalBoundaryFieldName {
-    fn as_str(&self) -> &str {
-        match self {
+        match value {
             HeatBalanceInternalBoundaryFieldName::FabricIntAirConvective => {
-                "fabric_int_air_convective"
+                arcstr::literal!("fabric_int_air_convective")
             }
-            HeatBalanceInternalBoundaryFieldName::FabricIntSol => "fabric_int_sol",
-            HeatBalanceInternalBoundaryFieldName::FabricIntIntGains => "fabric_int_int_gains",
-            HeatBalanceInternalBoundaryFieldName::FabricIntHeatCool => "fabric_int_heat_cool",
+            HeatBalanceInternalBoundaryFieldName::FabricIntSol => {
+                arcstr::literal!("fabric_int_sol")
+            }
+            HeatBalanceInternalBoundaryFieldName::FabricIntIntGains => {
+                arcstr::literal!("fabric_int_int_gains")
+            }
+            HeatBalanceInternalBoundaryFieldName::FabricIntHeatCool => {
+                arcstr::literal!("fabric_int_heat_cool")
+            }
         }
     }
 }
 
 impl GainsLossesAsIndexMap for HeatBalanceInternalBoundary {
-    fn as_index_map(&self) -> IndexMap<Arc<str>, f64> {
+    fn as_index_map(&self) -> IndexMap<ArcStr, f64> {
         let Self {
             fabric_int_air_convective,
             fabric_int_sol,
@@ -1700,7 +1705,7 @@ pub struct HeatBalanceExternalBoundary {
     pub ztu_fabric_ext: f64,
 }
 
-impl From<HeatBalanceExternalBoundaryFieldName> for Arc<str> {
+impl From<HeatBalanceExternalBoundaryFieldName> for ArcStr {
     fn from(value: HeatBalanceExternalBoundaryFieldName) -> Self {
         value.as_str().into()
     }
@@ -1736,7 +1741,7 @@ impl HeatBalanceExternalBoundaryFieldName {
 }
 
 impl GainsLossesAsIndexMap for HeatBalanceExternalBoundary {
-    fn as_index_map(&self) -> IndexMap<Arc<str>, f64> {
+    fn as_index_map(&self) -> IndexMap<ArcStr, f64> {
         let Self {
             solar_gains,
             internal_gains,
@@ -1822,7 +1827,7 @@ pub struct HeatBalance {
     pub external_boundary: HeatBalanceExternalBoundary,
 }
 
-impl From<HeatBalanceFieldName> for Arc<str> {
+impl From<HeatBalanceFieldName> for ArcStr {
     fn from(value: HeatBalanceFieldName) -> Self {
         serde_json::to_value(&value)
             .unwrap()
@@ -1833,7 +1838,9 @@ impl From<HeatBalanceFieldName> for Arc<str> {
 }
 
 impl HeatBalance {
-    pub(crate) fn as_index_map(&self) -> IndexMap<HeatBalanceFieldName, IndexMap<Arc<str>, f64>> {
+    pub(crate) fn as_index_map(
+        &self,
+    ) -> IndexMap<HeatBalanceFieldName, IndexMap<&'static str, f64>> {
         let Self {
             air_node,
             internal_boundary,
@@ -1877,6 +1884,7 @@ mod tests {
     use indexmap::IndexMap;
     use pretty_assertions::assert_eq;
     use rstest::{fixture, rstest};
+    use std::fmt::Display;
 
     const BASE_AIR_TEMPS: [f64; 24] = [
         0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 7.5, 10.0, 12.5, 15.0, 19.5, 17.0,
@@ -2406,11 +2414,14 @@ mod tests {
         }
     }
 
-    fn maps_approx_equal(
-        actual: &IndexMap<Arc<str>, f64>,
-        expected: &IndexMap<Arc<str>, f64>,
+    fn maps_approx_equal<T>(
+        actual: &IndexMap<T, f64>,
+        expected: &IndexMap<T, f64>,
         tol: f64,
-    ) -> bool {
+    ) -> bool
+    where
+        T: Display + Eq + Hash,
+    {
         if actual.len() != expected.len() {
             return false;
         }

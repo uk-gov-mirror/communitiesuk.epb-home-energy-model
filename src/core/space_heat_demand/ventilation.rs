@@ -24,6 +24,7 @@ use crate::simulation_time::SimulationTimeIteration;
 use crate::StringOrNumber;
 use anyhow::{anyhow, bail, Error};
 use approx::relative_eq;
+use arcstr::ArcStr;
 use argmin::{
     core::{CostFunction, Executor},
     solver::brent::BrentRoot,
@@ -2870,7 +2871,7 @@ impl InfiltrationVentilation {
         input: &InfiltrationVentilationInput,
         zones: &ZoneDictionary,
         detailed_output_heating_cooling: bool,
-        energy_supplies: &IndexMap<String, Arc<RwLock<EnergySupply>>>,
+        energy_supplies: &IndexMap<ArcStr, Arc<RwLock<EnergySupply>>>,
         controls: &Controls,
         smart_air_brick_control: Option<Arc<Control>>, // In Python this is SetpointTimeControl
         vents_open_during_airtightness_test: Option<bool>,

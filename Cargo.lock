@@ -124,6 +124,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arcstr"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03918c3dbd7701a85c6b9887732e2921175f26c350b4563841d0958c21d57e6d"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "argmin"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1164,6 +1173,7 @@ dependencies = [
  "approx",
  "arbitrary",
  "arc-swap",
+ "arcstr",
  "argmin",
  "atomic_float",
  "bounded-vec-deque",
@@ -1655,9 +1665,9 @@ dependencies = [
 
 [[package]]
 name = "jsonschema"
-version = "0.50.0"
+version = "0.50.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bd2225bc56c338f18465ce618e5e56fff1295fcb0a0cb338b28010193f26949"
+checksum = "29b6bb4e22283b09119c671e57ac6a185e9a0c70c31585e56b729b626d877753"
 dependencies = [
  "ahash",
  "bytecount",

@@ -12,6 +12,7 @@ use crate::input::{
 use crate::simulation_time::{SimulationTimeIteration, SimulationTimeIterator, HOURS_IN_DAY};
 use anyhow::{anyhow, bail};
 use approx::relative_eq;
+use arcstr::ArcStr;
 use atomic_float::AtomicF64;
 use bounded_vec_deque::BoundedVecDeque;
 use core::panic;
@@ -769,7 +770,9 @@ impl RangeTimeControl {
     ) -> anyhow::Result<Self> {
         let duration_advanced_start = duration_advanced_start.unwrap_or(0.);
 
-        if let (ScheduleOrControl::Schedule(ref lower), ScheduleOrControl::Schedule(ref upper)) = (&schedule_lower, &schedule_upper) {
+        if let (ScheduleOrControl::Schedule(ref lower), ScheduleOrControl::Schedule(ref upper)) =
+            (&schedule_lower, &schedule_upper)
+        {
             if lower.len() != upper.len() {
                 bail!("schedule_lower and schedule_upper must be of the same length")
             }
@@ -890,7 +893,7 @@ impl ControlBehaviour for RangeTimeControl {
         if setpnt_lower.is_some() {
             return true;
         }
-        
+
         if simulation_time_iteration.index == 0 {
             return false;
         }
@@ -1125,13 +1128,13 @@ impl ControlBehaviour for SetpointTimeControl {
 #[derive(Debug)]
 pub(crate) struct SmartApplianceControl {
     appliance_names: Vec<String>,
-    energy_supplies: IndexMap<String, Arc<RwLock<EnergySupply>>>,
-    battery_states_of_charge: IndexMap<String, Vec<AtomicF64>>,
-    ts_power: IndexMap<Arc<str>, Vec<AtomicF64>>,
+    energy_supplies: IndexMap<ArcStr, Arc<RwLock<EnergySupply>>>,
+    battery_states_of_charge: IndexMap<ArcStr, Vec<AtomicF64>>,
+    ts_power: IndexMap<ArcStr, Vec<AtomicF64>>,
     ts_step: f64,
     simulation_timestep: f64,
     ts_step_ratio: f64,
-    non_appliance_demand_24hr: IndexMap<Arc<str>, Vec<AtomicF64>>,
+    non_appliance_demand_24hr: IndexMap<ArcStr, Vec<AtomicF64>>,
     buffer_length: usize,
 }
 
@@ -1151,18 +1154,18 @@ impl SmartApplianceControl {
     /// * `energysupplies` - dictionary of energysupply objects in the simulation
     /// * `appliances` - list of names of all appliance objects in the simulation
     pub(crate) fn new(
-        power_timeseries: &IndexMap<Arc<str>, Vec<f64>>,
+        power_timeseries: &IndexMap<ArcStr, Vec<f64>>,
         timeseries_step: f64,
         simulation_time_iterator: &SimulationTimeIterator,
-        non_appliance_demand_24hr: IndexMap<Arc<str>, Vec<f64>>,
+        non_appliance_demand_24hr: IndexMap<ArcStr, Vec<f64>>,
         battery_24hr: SmartApplianceBattery,
-        energy_supplies: &IndexMap<String, Arc<RwLock<EnergySupply>>>,
+        energy_supplies: &IndexMap<ArcStr, Arc<RwLock<EnergySupply>>>,
         appliance_names: Vec<String>,
     ) -> anyhow::Result<Self> {
-        let energy_supplies: IndexMap<String, Arc<RwLock<EnergySupply>>> = energy_supplies
+        let energy_supplies: IndexMap<ArcStr, Arc<RwLock<EnergySupply>>> = energy_supplies
             .iter()
             .filter(|(key, _)| power_timeseries.contains_key(key.as_str()))
-            .map(|(k, v)| (k.to_owned(), v.clone()))
+            .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
         let battery_states_of_charge = energy_supplies
             .iter()
@@ -1177,7 +1180,7 @@ impl SmartApplianceControl {
                 Ok(false) => None,
                 Err(e) => Some(Err(e)),
             })
-            .collect::<Result<IndexMap<String, Vec<AtomicF64>>, _>>()?;
+            .collect::<Result<IndexMap<ArcStr, Vec<AtomicF64>>, _>>()?;
 
         for energy_supply in energy_supplies.keys() {
             if power_timeseries[energy_supply.as_str()].len() as f64 * timeseries_step
@@ -1331,7 +1334,7 @@ impl ControlBehaviour for SmartApplianceControl {}
 /// An object to model a control with nested combinations of other control types
 pub(crate) struct CombinationTimeControl {
     combinations: ControlCombinations,
-    controls: IndexMap<String, Arc<Control>>,
+    controls: IndexMap<ArcStr, Arc<Control>>,
 }
 
 impl CombinationTimeControl {
@@ -1343,7 +1346,7 @@ impl CombinationTimeControl {
     /// * `simulation_time` - reference to SimulationTime object
     pub(crate) fn new(
         combinations: ControlCombinations,
-        controls: IndexMap<String, Arc<Control>>,
+        controls: IndexMap<ArcStr, Arc<Control>>,
     ) -> anyhow::Result<Self> {
         Self::validate_combinations(&combinations)?;
 
@@ -1776,7 +1779,7 @@ impl CombinationTimeControl {
     }
 
     #[cfg(test)]
-    fn set_controls(&mut self, controls: IndexMap<String, Arc<Control>>) {
+    fn set_controls(&mut self, controls: IndexMap<ArcStr, Arc<Control>>) {
         self.controls = controls;
     }
 }
@@ -2807,7 +2810,7 @@ mod tests {
             let power_timeseries = &IndexMap::from([("mains elec".into(), vec![100.; 12])]);
             let non_appliance_demand_24hr =
                 IndexMap::from([("mains elec".into(), vec![[0.1, 0.2]; 6].into_flattened())]);
-            let battery_state_of_charge: IndexMap<Arc<str>, Vec<f64>> =
+            let battery_state_of_charge: IndexMap<ArcStr, Vec<f64>> =
                 IndexMap::from([("mains elec".into(), vec![0.5; 12])]);
             let battery_24hr = SmartApplianceBattery {
                 battery_state_of_charge,
@@ -2834,8 +2837,8 @@ mod tests {
             simulation_time_iterator: SimulationTimeIterator,
             energy_supply: Arc<RwLock<EnergySupply>>,
         ) {
-            let battery_state_of_charge: IndexMap<Arc<str>, Vec<f64>> =
-                IndexMap::from([("mains elec".into(), vec![0.; 12])]);
+            let battery_state_of_charge: IndexMap<ArcStr, Vec<f64>> =
+                IndexMap::from([(arcstr::literal!("mains elec"), vec![0.; 12])]);
             let battery_24hr = SmartApplianceBattery {
                 battery_state_of_charge,
                 energy_into_battery_from_generation: IndexMap::new(),
@@ -2881,7 +2884,7 @@ mod tests {
 
         fn test_update_demand_buffer(
             energy_supply: Arc<RwLock<EnergySupply>>,
-            simulation_time_iterator: SimulationTimeIterator
+            simulation_time_iterator: SimulationTimeIterator,
         ) {
             // we create our own instance of SmartApplianceControl here
             // because we need different test data
@@ -2891,7 +2894,7 @@ mod tests {
             let power_timeseries = &IndexMap::from([("mains elec".into(), vec![100.; 12])]);
             let non_appliance_demand_24hr =
                 IndexMap::from([("mains elec".into(), vec![[0.1]; 12].into_flattened())]);
-            let battery_state_of_charge: IndexMap<Arc<str>, Vec<f64>> =
+            let battery_state_of_charge: IndexMap<ArcStr, Vec<f64>> =
                 IndexMap::from([("mains elec".into(), vec![0.0; 12])]);
             let battery_24hr = SmartApplianceBattery {
                 battery_state_of_charge,
@@ -3261,18 +3264,20 @@ mod tests {
         fn test_is_on_separate_control() {
             let simulation_time = SimulationTime::new(0.0, 8.0, 1.0);
             let schedule = [false, true, true, true, false, true, true, true];
-            let control = Arc::new(Control::OnOffTime(OnOffTimeControl::new(schedule.into_iter().map(Some).collect(), 0, 1.)));
+            let control = Arc::new(Control::OnOffTime(OnOffTimeControl::new(
+                schedule.into_iter().map(Some).collect(),
+                0,
+                1.,
+            )));
             let charge_control_1 = create_charge_control_with_control(
                 ControlLogicType::Automatic,
                 Some(15.5),
                 Some(external_conditions()),
-                control
-            ).unwrap();
+                control,
+            )
+            .unwrap();
             for (t_idx, t_it) in simulation_time.iter().enumerate() {
-                assert_eq!(
-                    charge_control_1.is_on(&t_it),
-                    schedule[t_idx]
-                );
+                assert_eq!(charge_control_1.is_on(&t_it), schedule[t_idx]);
             }
         }
 
@@ -3626,23 +3631,33 @@ mod tests {
 
         #[rstest]
         fn test_in_required_period_delegates_to_is_on() {
-            let simulation_time_iteration = SimulationTimeIteration { index: 0, time: 0., timestep: 1.  };
+            let simulation_time_iteration = SimulationTimeIteration {
+                index: 0,
+                time: 0.,
+                timestep: 1.,
+            };
 
             let schedule = [true; 8];
-            let charge_control = create_charge_control(ControlLogicType::HeatBattery,
+            let charge_control = create_charge_control(
+                ControlLogicType::HeatBattery,
                 None,
                 Some(external_conditions()),
-                schedule.into()).unwrap();
+                schedule.into(),
+            )
+            .unwrap();
 
             let actual = charge_control.in_required_period(&simulation_time_iteration);
             assert_eq!(actual, Some(true));
 
             let schedule = [false; 8];
 
-            let charge_control = create_charge_control(ControlLogicType::HeatBattery,
+            let charge_control = create_charge_control(
+                ControlLogicType::HeatBattery,
                 None,
                 Some(external_conditions()),
-                schedule.into()).unwrap();
+                schedule.into(),
+            )
+            .unwrap();
 
             let actual = charge_control.in_required_period(&simulation_time_iteration);
             assert_eq!(actual, Some(false));
@@ -3650,15 +3665,24 @@ mod tests {
 
         #[rstest]
         fn test_setpnt_returns_target_charge_when_on() {
-            let simulation_time_iteration = SimulationTimeIteration { index: 0, time: 0., timestep: 1.  };
+            let simulation_time_iteration = SimulationTimeIteration {
+                index: 0,
+                time: 0.,
+                timestep: 1.,
+            };
 
             let schedule = [true; 8];
-            let charge_control = create_charge_control(ControlLogicType::HeatBattery,
+            let charge_control = create_charge_control(
+                ControlLogicType::HeatBattery,
                 None,
                 Some(external_conditions()),
-                schedule.into()).unwrap();
+                schedule.into(),
+            )
+            .unwrap();
 
-            let target_charge = charge_control.target_charge(simulation_time_iteration.clone(), None).unwrap();
+            let target_charge = charge_control
+                .target_charge(simulation_time_iteration.clone(), None)
+                .unwrap();
             let setpnt = charge_control.setpnt(&simulation_time_iteration);
 
             assert_eq!(setpnt, Some(target_charge));
@@ -3666,13 +3690,20 @@ mod tests {
 
         #[rstest]
         fn test_setpnt_returns_none_when_off() {
-            let simulation_time_iteration = SimulationTimeIteration { index: 0, time: 0., timestep: 1.  };
+            let simulation_time_iteration = SimulationTimeIteration {
+                index: 0,
+                time: 0.,
+                timestep: 1.,
+            };
 
             let schedule = [false; 8];
-            let charge_control = create_charge_control(ControlLogicType::HeatBattery,
+            let charge_control = create_charge_control(
+                ControlLogicType::HeatBattery,
                 None,
                 Some(external_conditions()),
-                schedule.into()).unwrap();
+                schedule.into(),
+            )
+            .unwrap();
 
             let setpnt = charge_control.setpnt(&simulation_time_iteration);
 
@@ -3830,15 +3861,33 @@ mod tests {
         fn test_invalid_controls(simulation_time_1: SimulationTime) {
             // test that creating a CombinationTimeControl with a RangeTimeControl causes an error
             let range_time_control = RangeTimeControl::new(
-                ScheduleOrControl::Schedule([10.9, 10.9, 10.9, 10.9, 10.9, 10.9, 10.9, 10.9].into_iter().map(Some).collect()),
-                ScheduleOrControl::Schedule([20.3, 20.3, 20.3, 20.3, 20.3, 20.3, 20.3, 20.3].into_iter().map(Some).collect()),
+                ScheduleOrControl::Schedule(
+                    [10.9, 10.9, 10.9, 10.9, 10.9, 10.9, 10.9, 10.9]
+                        .into_iter()
+                        .map(Some)
+                        .collect(),
+                ),
+                ScheduleOrControl::Schedule(
+                    [20.3, 20.3, 20.3, 20.3, 20.3, 20.3, 20.3, 20.3]
+                        .into_iter()
+                        .map(Some)
+                        .collect(),
+                ),
                 simulation_time_1,
                 0.,
                 1.,
-                None
-            ).unwrap();
+                None,
+            )
+            .unwrap();
 
-            let on_off_time_control = OnOffTimeControl::new([false, true, true, false, false, false, true, false].into_iter().map(Some).collect(), 0, 1.);
+            let on_off_time_control = OnOffTimeControl::new(
+                [false, true, true, false, false, false, true, false]
+                    .into_iter()
+                    .map(Some)
+                    .collect(),
+                0,
+                1.,
+            );
 
             let ctrl1 = Arc::new(Control::RangeTime(range_time_control));
             let ctrl2 = Arc::new(Control::OnOffTime(on_off_time_control));
@@ -3848,10 +3897,7 @@ mod tests {
                     "main": {"operation": "AND", "controls": ["ctrl1", "ctrl2"]},
                 }))
                 .unwrap(),
-                IndexMap::from([
-                    ("ctrl1".into(), ctrl1),
-                    ("ctrl2".into(), ctrl2),
-                ]),
+                IndexMap::from([("ctrl1".into(), ctrl1), ("ctrl2".into(), ctrl2)]),
             );
 
             assert!(result.is_err());
@@ -4456,7 +4502,7 @@ mod tests {
         fn test_max_min_mean_operations_logic() {
             let simtime_short = SimulationTime::new(0., 4., 1.);
 
-            let controls: IndexMap<String, Arc<Control>> = IndexMap::from([
+            let controls: IndexMap<ArcStr, Arc<Control>> = IndexMap::from([
                 (
                     "ctrl_a".into(),
                     Control::OnOffTime(OnOffTimeControl::new(
@@ -4622,7 +4668,7 @@ mod tests {
     #[fixture]
     fn controls_for_combination(
         simulation_time_for_charge_control: SimulationTime,
-    ) -> IndexMap<String, Arc<Control>> {
+    ) -> IndexMap<ArcStr, Arc<Control>> {
         let cost_schedule = vec![
             5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 10.0, 10.0, 10.0, 10.0,
             10.0, 10.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0,
@@ -4768,7 +4814,7 @@ mod tests {
 
     #[fixture]
     fn combination_control_on_off(
-        controls_for_combination: IndexMap<String, Arc<Control>>,
+        controls_for_combination: IndexMap<ArcStr, Arc<Control>>,
     ) -> CombinationTimeControl {
         let combination_on_off: ControlCombinations = serde_json::from_value(json!({
             "main": {"operation": "AND", "controls": ["ctrl1", "ctrl2", "comb1", "comb2"]},
@@ -4783,7 +4829,7 @@ mod tests {
 
     #[fixture]
     fn combination_control_setpoint(
-        controls_for_combination: IndexMap<String, Arc<Control>>,
+        controls_for_combination: IndexMap<ArcStr, Arc<Control>>,
     ) -> CombinationTimeControl {
         let combination_setpoint: ControlCombinations = serde_json::from_value(json!({
             "main": {"operation": "AND", "controls": ["ctrl1", "ctrl2", "comb1"]},
@@ -4796,7 +4842,7 @@ mod tests {
 
     #[fixture]
     fn combination_control_req(
-        controls_for_combination: IndexMap<String, Arc<Control>>,
+        controls_for_combination: IndexMap<ArcStr, Arc<Control>>,
     ) -> CombinationTimeControl {
         let combination_req: ControlCombinations = serde_json::from_value(json!({
             "main": {"operation": "AND", "controls": ["ctrl9", "comb1"]},
@@ -4809,7 +4855,7 @@ mod tests {
 
     #[fixture]
     fn combination_control_on_off_cost(
-        controls_for_combination: IndexMap<String, Arc<Control>>,
+        controls_for_combination: IndexMap<ArcStr, Arc<Control>>,
     ) -> CombinationTimeControl {
         let combination_on_off_cost: ControlCombinations = serde_json::from_value(json!({
             "main": {"operation": "AND", "controls": ["ctrl1", "ctrl2", "comb1"]},
@@ -4823,7 +4869,7 @@ mod tests {
     #[fixture]
     fn controls_for_target_charge(
         charge_control_for_combination: ChargeControl,
-    ) -> IndexMap<String, Arc<Control>> {
+    ) -> IndexMap<ArcStr, Arc<Control>> {
         IndexMap::from([
             (
                 "ctrl11".into(),
@@ -4858,7 +4904,7 @@ mod tests {
 
     #[fixture]
     fn combination_control_target_charge(
-        controls_for_target_charge: IndexMap<String, Arc<Control>>,
+        controls_for_target_charge: IndexMap<ArcStr, Arc<Control>>,
     ) -> CombinationTimeControl {
         CombinationTimeControl::new(
             serde_json::from_value(json!({
@@ -4872,7 +4918,7 @@ mod tests {
 
     #[fixture]
     fn combination_control_target_charge1(
-        controls_for_target_charge: IndexMap<String, Arc<Control>>,
+        controls_for_target_charge: IndexMap<ArcStr, Arc<Control>>,
     ) -> CombinationTimeControl {
         CombinationTimeControl::new(
             serde_json::from_value(json!({
@@ -4892,7 +4938,7 @@ mod tests {
     #[fixture]
     fn controls_for_invalid_combinations(
         charge_control_for_combination: ChargeControl,
-    ) -> IndexMap<String, Arc<Control>> {
+    ) -> IndexMap<ArcStr, Arc<Control>> {
         IndexMap::from([
             (
                 "ctrl14".into(),
@@ -4940,7 +4986,7 @@ mod tests {
     // this test is introduced in the Rust to test up-front validation of combinations
     #[rstest]
     fn test_invalid_combinations_caught_on_instantiation(
-        controls_for_invalid_combinations: IndexMap<String, Arc<Control>>,
+        controls_for_invalid_combinations: IndexMap<ArcStr, Arc<Control>>,
     ) {
         let invalid_combinations = [
             json!({
@@ -4956,5 +5002,4 @@ mod tests {
             .is_err());
         }
     }
-    
 }

@@ -34,6 +34,7 @@ use crate::read_weather_file::{
 use crate::simulation_time::SimulationTime;
 use anyhow::{anyhow, bail};
 use approx::relative_eq;
+use arcstr::ArcStr;
 use convert_case::{Case, Casing};
 use csv::WriterBuilder;
 use erased_serde::Serialize as ErasedSerialize;
@@ -1438,7 +1439,7 @@ fn write_core_output_file_hot_water_source(
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum StringOrNumber {
-    String(String),
+    String(ArcStr),
     Float(f64),
     Integer(usize),
 }

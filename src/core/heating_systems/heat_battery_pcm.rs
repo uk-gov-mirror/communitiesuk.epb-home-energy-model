@@ -24,6 +24,7 @@ use crate::input::{
 use crate::simulation_time::SimulationTimeIteration;
 use anyhow::{anyhow, bail};
 use approx::relative_eq;
+use arcstr::ArcStr;
 use atomic_float::AtomicF64;
 use fsum::FSum;
 use indexmap::IndexMap;
@@ -490,7 +491,7 @@ const DEFAULT_OUTLET_TEMP_CELSIUS: f64 = 53.; // Estimated outlet temperature fo
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 struct HeatBatteryResult {
-    service_name: String,
+    service_name: ArcStr,
     service_type: Option<HeatingServiceType>,
     service_on: bool,
     energy_output_required: f64,
@@ -508,7 +509,7 @@ struct HeatBatteryResult {
 impl HeatBatteryResult {
     fn param(&self, param: &str) -> ResultParamValue {
         match param {
-            "service_name" => ResultParamValue::from(self.service_name.clone()),
+            "service_name" => ResultParamValue::String(self.service_name.clone()),
             "service_type" => self
                 .service_type
                 .as_ref()
@@ -592,7 +593,7 @@ pub struct HeatBatteryPcm {
     simulation_time_step: f64,
     energy_supply: Arc<RwLock<EnergySupply>>,
     energy_supply_connection: EnergySupplyConnection,
-    energy_supply_connections: IndexMap<String, EnergySupplyConnection>,
+    energy_supply_connections: IndexMap<ArcStr, EnergySupplyConnection>,
     pwr_in: f64,
     max_rated_losses: f64,
     power_circ_pump: f64,
@@ -1873,9 +1874,9 @@ impl HeatBatteryPcm {
         // If detailed results are to be output, save the results from the current timestep
         if let Some(detailed_results) = self.detailed_results.as_ref() {
             let service_results = self.service_results.read();
-            let services_called: IndexMap<&String, &HeatBatteryResult> = service_results
+            let services_called: IndexMap<ArcStr, &HeatBatteryResult> = service_results
                 .iter()
-                .map(|result| (&result.service_name, result))
+                .map(|result| (result.service_name.into(), result))
                 .collect();
 
             // Ensure all registered services have an entry in the results
@@ -1953,7 +1954,7 @@ impl HeatBatteryPcm {
         // Report auxiliary parameters (not specific to a service)
         for (parameter, param_unit, _) in AUX_PARAMETERS {
             if ["Temps_after_losses", "hb_after_only_charge_zone_temp"].contains(&parameter) {
-                let mut labels: Option<Vec<Arc<str>>> = Default::default();
+                let mut labels: Option<Vec<ArcStr>> = Default::default();
                 for service_results in detailed_results.read().iter() {
                     let summary = &service_results.summary;
                     let param_values = match parameter {
@@ -1995,7 +1996,7 @@ impl HeatBatteryPcm {
 
         // For each service, report required output parameters
         for (service_idx, service_name) in self.energy_supply_connections.keys().enumerate() {
-            let service_name: Arc<str> = service_name.as_str().into();
+            let service_name: ArcStr = service_name.into();
             let mut current_results: ResultPerTimestep = Default::default();
 
             // Look up each required parameter
@@ -2004,7 +2005,7 @@ impl HeatBatteryPcm {
                 for service_results in detailed_results.read().iter() {
                     let current_result = &service_results.results[service_idx];
                     if parameter == "hb_zone_temperatures" {
-                        let labels: Vec<Arc<str>> = (0..current_result.hb_zone_temperatures.len())
+                        let labels: Vec<ArcStr> = (0..current_result.hb_zone_temperatures.len())
                             .map(|i| format!("{parameter}{i}").into())
                             .collect_vec();
                         for (label, result) in labels
@@ -2069,7 +2070,7 @@ impl HeatBatteryPcm {
         }
         // For each service, report required output parameters
         for service_name in self.energy_supply_connections.keys() {
-            let service_name: Arc<str> = service_name.as_str().into();
+            let service_name: ArcStr = service_name.into();
             results_annual.insert(service_name.clone(), Default::default());
             for (parameter, param_unit, incl_in_annual) in OUTPUT_PARAMETERS {
                 if incl_in_annual {
@@ -2108,7 +2109,7 @@ impl HeatBatteryPcm {
 #[error("Tried to call output_detailed_results when option to collect detailed results was not selected")]
 pub(crate) struct OutputDetailedResultsNotEnabledError;
 
-type ResultPerTimestep = IndexMap<(Arc<str>, Option<Arc<str>>), Vec<ResultParamValue>>;
+type ResultPerTimestep = IndexMap<(ArcStr, Option<ArcStr>), Vec<ResultParamValue>>;
 
 #[cfg(test)]
 mod tests {
@@ -2132,7 +2133,6 @@ mod tests {
     use parking_lot::RwLock;
     use rstest::*;
     use serde_json::json;
-    use smartstring::alias::String;
     use std::sync::atomic::Ordering;
     use std::sync::Arc;
 
@@ -2319,7 +2319,7 @@ mod tests {
         ))
     }
 
-    fn get_service_names_from_results(heat_battery: Arc<RwLock<HeatBatteryPcm>>) -> Vec<String> {
+    fn get_service_names_from_results(heat_battery: Arc<RwLock<HeatBatteryPcm>>) -> Vec<ArcStr> {
         heat_battery
             .read()
             .service_results

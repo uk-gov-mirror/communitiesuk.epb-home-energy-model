@@ -24,6 +24,7 @@ use crate::input::{ControlLogicType, HeatBattery};
 use crate::statistics::{linspace, np_interp};
 use anyhow::{anyhow, bail};
 use approx::relative_eq;
+use arcstr::ArcStr;
 use atomic_float::AtomicF64;
 use educe::Educe;
 use fsum::FSum;
@@ -1775,7 +1776,7 @@ impl HeatBatteryDryCore {
         }
 
         // For each service, report required output parameters
-        let service_names: Vec<Arc<str>> = self
+        let service_names: Vec<ArcStr> = self
             .energy_supply_connections
             .read()
             .keys()
@@ -1796,7 +1797,7 @@ impl HeatBatteryDryCore {
                         let services_list = &timestep_data.services;
                         let service_data = services_list
                             .iter()
-                            .find(|service| service.service_name.as_str() == service_name.as_ref());
+                            .find(|service| service.service_name.as_str() == service_name);
                         let result = if let Some(service_data) = service_data {
                             service_data.param(parameter)
                         } else {
