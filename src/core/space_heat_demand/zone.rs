@@ -18,8 +18,9 @@ use fsum::FSum;
 use indexmap::IndexMap;
 use nalgebra::{DMatrix, DVector};
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 use serde_enum_str::Serialize_enum_str;
-use smartstring::alias::String;
+use serde_fields::SerdeField;
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::sync::Arc;
@@ -1547,85 +1548,67 @@ pub(crate) trait GainsLossesAsIndexMap {
     fn as_index_map(&self) -> IndexMap<Arc<str>, f64>;
 }
 
-#[derive(Debug, FieldName, PartialEq)]
-#[field_name_derive(Debug, Eq, Hash, PartialEq, Serialize_enum_str)]
+#[derive(Debug, Deserialize, PartialEq, SerdeField, Serialize)]
 pub struct HeatBalanceAirNode {
+    #[serde(rename = "solar gains")]
     pub solar_gains: f64,
+    #[serde(rename = "internal gains")]
     pub internal_gains: f64,
+    #[serde(rename = "heating or cooling system gains")]
     pub heating_or_cooling_system_gains: f64,
+    #[serde(rename = "energy to change internal temperature")]
     pub energy_to_change_internal_temperature: f64,
+    #[serde(rename = "thermal_bridges")]
+    // NB. casing scheme is correctly different from those above (correctly in sense this fits with the upstream Python)
     pub thermal_bridges: f64,
+    #[serde(rename = "infiltration_ventilation")]
     pub infiltration_ventilation: f64,
+    #[serde(rename = "fabric")] // upstream Python uses just "fabric" for this
     pub fabric_heat_loss: f64,
 }
 
-impl From<HeatBalanceAirNodeFieldName> for Arc<str> {
-    fn from(value: HeatBalanceAirNodeFieldName) -> Self {
-        value.as_str().into()
-    }
-}
+// impl GainsLossesAsIndexMap for HeatBalanceAirNode {
+//     fn as_index_map(&self) -> IndexMap<Arc<str>, f64> {
+//         let Self {
+//             solar_gains,
+//             internal_gains,
+//             heating_or_cooling_system_gains,
+//             energy_to_change_internal_temperature,
+//             thermal_bridges,
+//             infiltration_ventilation,
+//             fabric_heat_loss,
+//         } = self;
+//         IndexMap::from([
+//             (HeatBalanceAirNodeFieldName::SolarGains.into(), *solar_gains),
+//             (
+//                 HeatBalanceAirNodeFieldName::InternalGains.into(),
+//                 *internal_gains,
+//             ),
+//             (
+//                 HeatBalanceAirNodeFieldName::HeatingOrCoolingSystemGains.into(),
+//                 *heating_or_cooling_system_gains,
+//             ),
+//             (
+//                 HeatBalanceAirNodeFieldName::EnergyToChangeInternalTemperature.into(),
+//                 *energy_to_change_internal_temperature,
+//             ),
+//             (
+//                 HeatBalanceAirNodeFieldName::ThermalBridges.into(),
+//                 *thermal_bridges,
+//             ),
+//             (
+//                 HeatBalanceAirNodeFieldName::InfiltrationVentilation.into(),
+//                 *infiltration_ventilation,
+//             ),
+//             (
+//                 HeatBalanceAirNodeFieldName::FabricHeatLoss.into(),
+//                 *fabric_heat_loss,
+//             ),
+//         ])
+//     }
+// }
 
-impl HeatBalanceAirNodeFieldName {
-    fn as_str(&self) -> &str {
-        match self {
-            HeatBalanceAirNodeFieldName::SolarGains => "solar gains",
-            HeatBalanceAirNodeFieldName::InternalGains => "internal gains",
-            HeatBalanceAirNodeFieldName::HeatingOrCoolingSystemGains => {
-                "heating or cooling system gains"
-            }
-            HeatBalanceAirNodeFieldName::EnergyToChangeInternalTemperature => {
-                "energy to change internal temperature"
-            }
-            HeatBalanceAirNodeFieldName::ThermalBridges => "thermal_bridges", // NB. casing scheme is correctly different from those above (correctly in sense this fits with the upstream Python)
-            HeatBalanceAirNodeFieldName::InfiltrationVentilation => "infiltration_ventilation",
-            HeatBalanceAirNodeFieldName::FabricHeatLoss => "fabric", // upstream Python uses just "fabric" for this
-        }
-    }
-}
-
-impl GainsLossesAsIndexMap for HeatBalanceAirNode {
-    fn as_index_map(&self) -> IndexMap<Arc<str>, f64> {
-        let Self {
-            solar_gains,
-            internal_gains,
-            heating_or_cooling_system_gains,
-            energy_to_change_internal_temperature,
-            thermal_bridges,
-            infiltration_ventilation,
-            fabric_heat_loss,
-        } = self;
-        IndexMap::from([
-            (HeatBalanceAirNodeFieldName::SolarGains.into(), *solar_gains),
-            (
-                HeatBalanceAirNodeFieldName::InternalGains.into(),
-                *internal_gains,
-            ),
-            (
-                HeatBalanceAirNodeFieldName::HeatingOrCoolingSystemGains.into(),
-                *heating_or_cooling_system_gains,
-            ),
-            (
-                HeatBalanceAirNodeFieldName::EnergyToChangeInternalTemperature.into(),
-                *energy_to_change_internal_temperature,
-            ),
-            (
-                HeatBalanceAirNodeFieldName::ThermalBridges.into(),
-                *thermal_bridges,
-            ),
-            (
-                HeatBalanceAirNodeFieldName::InfiltrationVentilation.into(),
-                *infiltration_ventilation,
-            ),
-            (
-                HeatBalanceAirNodeFieldName::FabricHeatLoss.into(),
-                *fabric_heat_loss,
-            ),
-        ])
-    }
-}
-
-#[derive(Debug, FieldName, PartialEq)]
-#[field_name_derive(Debug, Eq, Hash, PartialEq, Serialize_enum_str)]
+#[derive(Debug, PartialEq, SerdeField, Serialize)]
 pub struct HeatBalanceInternalBoundary {
     pub fabric_int_air_convective: f64,
     pub fabric_int_sol: f64,
@@ -1633,225 +1616,243 @@ pub struct HeatBalanceInternalBoundary {
     pub fabric_int_heat_cool: f64,
 }
 
-impl From<HeatBalanceInternalBoundaryFieldName> for Arc<str> {
-    fn from(value: HeatBalanceInternalBoundaryFieldName) -> Self {
-        value.as_str().into()
-    }
-}
+// impl From<HeatBalanceInternalBoundaryFieldName> for Arc<str> {
+//     fn from(value: HeatBalanceInternalBoundaryFieldName) -> Self {
+//         value.as_str().into()
+//     }
+// }
+//
+// impl HeatBalanceInternalBoundaryFieldName {
+//     fn as_str(&self) -> &str {
+//         match self {
+//             HeatBalanceInternalBoundaryFieldName::FabricIntAirConvective => {
+//                 "fabric_int_air_convective"
+//             }
+//             HeatBalanceInternalBoundaryFieldName::FabricIntSol => "fabric_int_sol",
+//             HeatBalanceInternalBoundaryFieldName::FabricIntIntGains => "fabric_int_int_gains",
+//             HeatBalanceInternalBoundaryFieldName::FabricIntHeatCool => "fabric_int_heat_cool",
+//         }
+//     }
+// }
 
-impl HeatBalanceInternalBoundaryFieldName {
-    fn as_str(&self) -> &str {
-        match self {
-            HeatBalanceInternalBoundaryFieldName::FabricIntAirConvective => {
-                "fabric_int_air_convective"
-            }
-            HeatBalanceInternalBoundaryFieldName::FabricIntSol => "fabric_int_sol",
-            HeatBalanceInternalBoundaryFieldName::FabricIntIntGains => "fabric_int_int_gains",
-            HeatBalanceInternalBoundaryFieldName::FabricIntHeatCool => "fabric_int_heat_cool",
-        }
-    }
-}
+// impl GainsLossesAsIndexMap for HeatBalanceInternalBoundary {
+//     fn as_index_map(&self) -> IndexMap<Arc<str>, f64> {
+//         let Self {
+//             fabric_int_air_convective,
+//             fabric_int_sol,
+//             fabric_int_int_gains,
+//             fabric_int_heat_cool,
+//         } = self;
+//         IndexMap::from([
+//             (
+//                 HeatBalanceInternalBoundaryFieldName::FabricIntAirConvective.into(),
+//                 *fabric_int_air_convective,
+//             ),
+//             (
+//                 HeatBalanceInternalBoundaryFieldName::FabricIntSol.into(),
+//                 *fabric_int_sol,
+//             ),
+//             (
+//                 HeatBalanceInternalBoundaryFieldName::FabricIntIntGains.into(),
+//                 *fabric_int_int_gains,
+//             ),
+//             (
+//                 HeatBalanceInternalBoundaryFieldName::FabricIntHeatCool.into(),
+//                 *fabric_int_heat_cool,
+//             ),
+//         ])
+//     }
+// }
 
-impl GainsLossesAsIndexMap for HeatBalanceInternalBoundary {
-    fn as_index_map(&self) -> IndexMap<Arc<str>, f64> {
-        let Self {
-            fabric_int_air_convective,
-            fabric_int_sol,
-            fabric_int_int_gains,
-            fabric_int_heat_cool,
-        } = self;
-        IndexMap::from([
-            (
-                HeatBalanceInternalBoundaryFieldName::FabricIntAirConvective.into(),
-                *fabric_int_air_convective,
-            ),
-            (
-                HeatBalanceInternalBoundaryFieldName::FabricIntSol.into(),
-                *fabric_int_sol,
-            ),
-            (
-                HeatBalanceInternalBoundaryFieldName::FabricIntIntGains.into(),
-                *fabric_int_int_gains,
-            ),
-            (
-                HeatBalanceInternalBoundaryFieldName::FabricIntHeatCool.into(),
-                *fabric_int_heat_cool,
-            ),
-        ])
-    }
-}
-
-#[derive(Debug, FieldName, PartialEq)]
-#[field_name_derive(Debug, Eq, Hash, PartialEq, Serialize_enum_str)]
+#[derive(Debug, PartialEq, SerdeField, Serialize)]
 pub struct HeatBalanceExternalBoundary {
+    #[serde(rename = "solar gains")]
     pub solar_gains: f64,
+    #[serde(rename = "internal gains")]
     pub internal_gains: f64,
+    #[serde(rename = "heating or cooling system gains")]
     pub heating_or_cooling_system_gains: f64,
+    #[serde(rename = "thermal_bridges")] // NB. this correctly diverges from above variants
     pub thermal_bridges: f64,
+    #[serde(rename = "infiltration_ventilation")]
     pub infiltration_ventilation: f64,
+    #[serde(rename = "fabric_ext_air_convective")]
     pub fabric_ext_air_convective: f64,
+    #[serde(rename = "fabric_ext_air_radiative")]
     pub fabric_ext_air_radiative: f64,
+    #[serde(rename = "fabric_ext_sol")]
     pub fabric_ext_sol: f64,
+    #[serde(rename = "fabric_ext_sky")]
     pub fabric_ext_sky: f64,
+    #[serde(rename = "opaque_fabric_ext")]
     pub opaque_fabric_ext: f64,
+    #[serde(rename = "transparent_fabric_ext")]
     pub transparent_fabric_ext: f64,
+    #[serde(rename = "ground_fabric_ext")]
     pub ground_fabric_ext: f64,
+    #[serde(rename = "ZTC_fabric_ext")]
     pub ztc_fabric_ext: f64,
+    #[serde(rename = "ZTU_fabric_ext")]
     pub ztu_fabric_ext: f64,
 }
 
-impl From<HeatBalanceExternalBoundaryFieldName> for Arc<str> {
-    fn from(value: HeatBalanceExternalBoundaryFieldName) -> Self {
-        value.as_str().into()
-    }
-}
+// impl From<HeatBalanceExternalBoundaryFieldName> for Arc<str> {
+//     fn from(value: HeatBalanceExternalBoundaryFieldName) -> Self {
+//         value.as_str().into()
+//     }
+// }
+//
+// impl HeatBalanceExternalBoundaryFieldName {
+//     fn as_str(&self) -> &str {
+//         match self {
+//             HeatBalanceExternalBoundaryFieldName::SolarGains => "solar gains",
+//             HeatBalanceExternalBoundaryFieldName::InternalGains => "internal gains",
+//             HeatBalanceExternalBoundaryFieldName::HeatingOrCoolingSystemGains => {
+//                 "heating or cooling system gains"
+//             }
+//             HeatBalanceExternalBoundaryFieldName::ThermalBridges => "thermal_bridges", // NB. this correctly diverges from above variants
+//             HeatBalanceExternalBoundaryFieldName::InfiltrationVentilation => {
+//                 "infiltration_ventilation"
+//             }
+//             HeatBalanceExternalBoundaryFieldName::FabricExtAirConvective => {
+//                 "fabric_ext_air_convective"
+//             }
+//             HeatBalanceExternalBoundaryFieldName::FabricExtAirRadiative => {
+//                 "fabric_ext_air_radiative"
+//             }
+//             HeatBalanceExternalBoundaryFieldName::FabricExtSol => "fabric_ext_sol",
+//             HeatBalanceExternalBoundaryFieldName::FabricExtSky => "fabric_ext_sky",
+//             HeatBalanceExternalBoundaryFieldName::OpaqueFabricExt => "opaque_fabric_ext",
+//             HeatBalanceExternalBoundaryFieldName::TransparentFabricExt => "transparent_fabric_ext",
+//             HeatBalanceExternalBoundaryFieldName::GroundFabricExt => "ground_fabric_ext",
+//             HeatBalanceExternalBoundaryFieldName::ZtcFabricExt => "ZTC_fabric_ext",
+//             HeatBalanceExternalBoundaryFieldName::ZtuFabricExt => "ZTU_fabric_ext",
+//         }
+//     }
+// }
 
-impl HeatBalanceExternalBoundaryFieldName {
-    fn as_str(&self) -> &str {
-        match self {
-            HeatBalanceExternalBoundaryFieldName::SolarGains => "solar gains",
-            HeatBalanceExternalBoundaryFieldName::InternalGains => "internal gains",
-            HeatBalanceExternalBoundaryFieldName::HeatingOrCoolingSystemGains => {
-                "heating or cooling system gains"
-            }
-            HeatBalanceExternalBoundaryFieldName::ThermalBridges => "thermal_bridges", // NB. this correctly diverges from above variants
-            HeatBalanceExternalBoundaryFieldName::InfiltrationVentilation => {
-                "infiltration_ventilation"
-            }
-            HeatBalanceExternalBoundaryFieldName::FabricExtAirConvective => {
-                "fabric_ext_air_convective"
-            }
-            HeatBalanceExternalBoundaryFieldName::FabricExtAirRadiative => {
-                "fabric_ext_air_radiative"
-            }
-            HeatBalanceExternalBoundaryFieldName::FabricExtSol => "fabric_ext_sol",
-            HeatBalanceExternalBoundaryFieldName::FabricExtSky => "fabric_ext_sky",
-            HeatBalanceExternalBoundaryFieldName::OpaqueFabricExt => "opaque_fabric_ext",
-            HeatBalanceExternalBoundaryFieldName::TransparentFabricExt => "transparent_fabric_ext",
-            HeatBalanceExternalBoundaryFieldName::GroundFabricExt => "ground_fabric_ext",
-            HeatBalanceExternalBoundaryFieldName::ZtcFabricExt => "ZTC_fabric_ext",
-            HeatBalanceExternalBoundaryFieldName::ZtuFabricExt => "ZTU_fabric_ext",
-        }
-    }
-}
+// impl GainsLossesAsIndexMap for HeatBalanceExternalBoundary {
+//     fn as_index_map(&self) -> IndexMap<Arc<str>, f64> {
+//         let Self {
+//             solar_gains,
+//             internal_gains,
+//             heating_or_cooling_system_gains,
+//             thermal_bridges,
+//             infiltration_ventilation,
+//             fabric_ext_air_convective,
+//             fabric_ext_air_radiative,
+//             fabric_ext_sol,
+//             fabric_ext_sky,
+//             opaque_fabric_ext,
+//             transparent_fabric_ext,
+//             ground_fabric_ext,
+//             ztc_fabric_ext,
+//             ztu_fabric_ext,
+//         } = self;
+//         IndexMap::from([
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::SolarGains.into(),
+//                 *solar_gains,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::InternalGains.into(),
+//                 *internal_gains,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::HeatingOrCoolingSystemGains.into(),
+//                 *heating_or_cooling_system_gains,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::ThermalBridges.into(),
+//                 *thermal_bridges,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::InfiltrationVentilation.into(),
+//                 *infiltration_ventilation,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::FabricExtAirConvective.into(),
+//                 *fabric_ext_air_convective,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::FabricExtAirRadiative.into(),
+//                 *fabric_ext_air_radiative,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::FabricExtSol.into(),
+//                 *fabric_ext_sol,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::FabricExtSky.into(),
+//                 *fabric_ext_sky,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::OpaqueFabricExt.into(),
+//                 *opaque_fabric_ext,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::TransparentFabricExt.into(),
+//                 *transparent_fabric_ext,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::GroundFabricExt.into(),
+//                 *ground_fabric_ext,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::ZtcFabricExt.into(),
+//                 *ztc_fabric_ext,
+//             ),
+//             (
+//                 HeatBalanceExternalBoundaryFieldName::ZtuFabricExt.into(),
+//                 *ztu_fabric_ext,
+//             ),
+//         ])
+//     }
+// }
 
-impl GainsLossesAsIndexMap for HeatBalanceExternalBoundary {
-    fn as_index_map(&self) -> IndexMap<Arc<str>, f64> {
-        let Self {
-            solar_gains,
-            internal_gains,
-            heating_or_cooling_system_gains,
-            thermal_bridges,
-            infiltration_ventilation,
-            fabric_ext_air_convective,
-            fabric_ext_air_radiative,
-            fabric_ext_sol,
-            fabric_ext_sky,
-            opaque_fabric_ext,
-            transparent_fabric_ext,
-            ground_fabric_ext,
-            ztc_fabric_ext,
-            ztu_fabric_ext,
-        } = self;
-        IndexMap::from([
-            (
-                HeatBalanceExternalBoundaryFieldName::SolarGains.into(),
-                *solar_gains,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::InternalGains.into(),
-                *internal_gains,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::HeatingOrCoolingSystemGains.into(),
-                *heating_or_cooling_system_gains,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::ThermalBridges.into(),
-                *thermal_bridges,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::InfiltrationVentilation.into(),
-                *infiltration_ventilation,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::FabricExtAirConvective.into(),
-                *fabric_ext_air_convective,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::FabricExtAirRadiative.into(),
-                *fabric_ext_air_radiative,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::FabricExtSol.into(),
-                *fabric_ext_sol,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::FabricExtSky.into(),
-                *fabric_ext_sky,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::OpaqueFabricExt.into(),
-                *opaque_fabric_ext,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::TransparentFabricExt.into(),
-                *transparent_fabric_ext,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::GroundFabricExt.into(),
-                *ground_fabric_ext,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::ZtcFabricExt.into(),
-                *ztc_fabric_ext,
-            ),
-            (
-                HeatBalanceExternalBoundaryFieldName::ZtuFabricExt.into(),
-                *ztu_fabric_ext,
-            ),
-        ])
-    }
-}
-
-#[derive(Debug, FieldName, PartialEq)]
-#[field_name_derive(Debug, Eq, Hash, PartialEq, Serialize_enum_str)]
+#[derive(Debug, PartialEq, SerdeField, Serialize)]
 pub struct HeatBalance {
     pub air_node: HeatBalanceAirNode,
     pub internal_boundary: HeatBalanceInternalBoundary,
     pub external_boundary: HeatBalanceExternalBoundary,
 }
 
-impl From<HeatBalanceFieldName> for Arc<str> {
-    fn from(value: HeatBalanceFieldName) -> Self {
-        serde_json::to_value(&value)
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .into()
+impl Hash for HeatBalanceSerdeField {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
     }
 }
 
-impl HeatBalance {
-    pub(crate) fn as_index_map(&self) -> IndexMap<HeatBalanceFieldName, IndexMap<Arc<str>, f64>> {
-        let Self {
-            air_node,
-            internal_boundary,
-            external_boundary,
-        } = self;
-        IndexMap::from([
-            (HeatBalanceFieldName::AirNode, (*air_node).as_index_map()),
-            (
-                HeatBalanceFieldName::InternalBoundary,
-                (*internal_boundary).as_index_map(),
-            ),
-            (
-                HeatBalanceFieldName::ExternalBoundary,
-                (*external_boundary).as_index_map(),
-            ),
-        ])
-    }
-}
+// impl From<HeatBalanceFieldName> for Arc<str> {
+//     fn from(value: HeatBalanceFieldName) -> Self {
+//         serde_json::to_value(&value)
+//             .unwrap()
+//             .as_str()
+//             .unwrap()
+//             .into()
+//     }
+// }
+
+// impl HeatBalance {
+//     pub(crate) fn as_index_map(&self) -> IndexMap<HeatBalanceFieldName, IndexMap<Arc<str>, f64>> {
+//         let Self {
+//             air_node,
+//             internal_boundary,
+//             external_boundary,
+//         } = self;
+//         IndexMap::from([
+//             (HeatBalanceFieldName::AirNode, (*air_node).as_index_map()),
+//             (
+//                 HeatBalanceFieldName::InternalBoundary,
+//                 (*internal_boundary).as_index_map(),
+//             ),
+//             (
+//                 HeatBalanceFieldName::ExternalBoundary,
+//                 (*external_boundary).as_index_map(),
+//             ),
+//         ])
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

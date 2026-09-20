@@ -63,7 +63,7 @@ use crate::core::space_heat_demand::ventilation::{
 };
 use crate::core::space_heat_demand::zone::{
     calc_vent_heat_transfer_coeff, AirChangesPerHourArgument, HeatBalance, HeatBalanceFieldName,
-    Zone, ZoneTempInternalAir,
+    HeatBalanceSerdeField, Zone, ZoneTempInternalAir,
 };
 use crate::core::units::{
     kelvin_to_celsius, Orientation360, DAYS_PER_YEAR, HOURS_PER_DAY, SECONDS_PER_HOUR,
@@ -114,6 +114,7 @@ use crate::StringOrNumber;
 use crate::{convert_profile_to_daily, HEM_VERSION};
 use anyhow::{anyhow, bail};
 use approx::relative_eq;
+use arrayvec::ArrayVec;
 use atomic_float::AtomicF64;
 use chrono::{prelude::*, TimeDelta};
 use erased_serde::__private::serde::Serializer;
@@ -2280,9 +2281,9 @@ impl Corpus {
         let mut space_cool_provided_dict: IndexMap<Option<Arc<str>>, Vec<f64>> = Default::default();
         let mut zone_list: Vec<Arc<str>> = Default::default();
         let mut heat_balance_all_dict: HeatBalanceAllResults = IndexMap::from([
-            (HeatBalanceFieldName::AirNode, Default::default()),
-            (HeatBalanceFieldName::InternalBoundary, Default::default()),
-            (HeatBalanceFieldName::ExternalBoundary, Default::default()),
+            (HeatBalanceSerdeField::AirNode, Default::default()),
+            (HeatBalanceSerdeField::InternalBoundary, Default::default()),
+            (HeatBalanceSerdeField::ExternalBoundary, Default::default()),
         ]);
         let mut heat_source_wet_results_dict: IndexMap<Arc<str>, ResultsPerTimestep> =
             Default::default();
@@ -3582,7 +3583,7 @@ fn shareable_fn(num: &Arc<AtomicF64>) -> TempInternalAirFn {
 }
 
 pub(crate) type HeatBalanceAllResults =
-    IndexMap<HeatBalanceFieldName, IndexMap<Arc<str>, IndexMap<Arc<str>, Vec<f64>>>>;
+    IndexMap<HeatBalanceSerdeField, IndexMap<Arc<str>, ArrayVec<(Arc<str>, Vec<f64>), 14>>>; // 14 is the highest number of fields present in the HeatBalance sub-structs
 
 struct SpaceHeatingCalculation {
     gains_internal_zone: IndexMap<Arc<str>, f64>,
